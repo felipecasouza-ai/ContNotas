@@ -42,11 +42,11 @@ export default function App() {
     try {
       // Replace comma with dot for calculation
       const sanitized = expr.replace(/,/g, '.');
-      // Only allow numbers, dots and plus signs for safety
-      if (!/^[0-9.+\s]*$/.test(sanitized)) return 0;
+      // Only allow numbers, dots, plus signs and newlines for safety
+      if (!/^[0-9.+\s\n]*$/.test(sanitized)) return 0;
       
-      // Split by '+' and sum up
-      const parts = sanitized.split('+');
+      // Split by '+' or newline and sum up
+      const parts = sanitized.split(/[+\n]/);
       return parts.reduce((acc, part) => {
         const num = parseFloat(part.trim());
         return acc + (isNaN(num) ? 0 : num);
@@ -171,24 +171,23 @@ export default function App() {
                 </div>
                 <span className={`text-sm font-semibold uppercase tracking-wider ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>Valor Devido</span>
               </div>
-              <div className="relative flex flex-col items-end gap-2">
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-mono">R$</span>
-                  <input
-                    type="text"
-                    inputMode="text"
-                    placeholder="0,00 + 0,00"
+              <div className="relative flex flex-col items-end gap-2 w-full md:w-64">
+                <div className="relative w-full">
+                  <span className="absolute left-4 top-4 text-stone-400 font-mono">R$</span>
+                  <textarea
+                    rows={3}
+                    placeholder="0,00&#10;0,00"
                     value={dueValue}
                     onChange={(e) => {
                       const val = e.target.value;
-                      if (val === '' || /^[0-9.,+\s]*$/.test(val)) {
+                      if (val === '' || /^[0-9.,+\s\n]*$/.test(val)) {
                         setDueValue(val);
                       }
                     }}
-                    className={`w-full md:w-64 pl-10 pr-4 py-3 border rounded-2xl focus:ring-2 focus:ring-amber-500 transition-all font-mono text-xl text-right ${isDarkMode ? 'bg-stone-800 border-stone-700 text-white placeholder-stone-600 focus:bg-stone-700' : 'bg-white border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white'}`}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-2xl focus:ring-2 focus:ring-amber-500 transition-all font-mono text-xl text-right resize-none ${isDarkMode ? 'bg-stone-800 border-stone-700 text-white placeholder-stone-600 focus:bg-stone-700' : 'bg-white border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white'}`}
                   />
                 </div>
-                {dueValue.includes('+') && totals.due > 0 && (
+                {(dueValue.includes('+') || dueValue.includes('\n')) && totals.due > 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
