@@ -14,7 +14,8 @@ export default function App() {
     BANKNOTES.reduce((acc, note) => ({ ...acc, [note]: '' }), {})
   );
 
-  const [dueValue, setDueValue] = useState<string>('');
+  const [dueItems, setDueItems] = useState<number[]>([]);
+  const [currentDueInput, setCurrentDueInput] = useState<string>('');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Sync dark mode with document class for potential global styles
@@ -35,25 +36,20 @@ export default function App() {
 
   const reset = () => {
     setQuantities(BANKNOTES.reduce((acc, note) => ({ ...acc, [note]: '' }), {}));
-    setDueValue('');
+    setDueItems([]);
+    setCurrentDueInput('');
   };
 
-  const evaluateExpression = (expr: string): number => {
-    try {
-      // Replace comma with dot for calculation
-      const sanitized = expr.replace(/,/g, '.');
-      // Only allow numbers, dots, plus signs and newlines for safety
-      if (!/^[0-9.+\s\n]*$/.test(sanitized)) return 0;
-      
-      // Split by '+' or newline and sum up
-      const parts = sanitized.split(/[+\n]/);
-      return parts.reduce((acc, part) => {
-        const num = parseFloat(part.trim());
-        return acc + (isNaN(num) ? 0 : num);
-      }, 0);
-    } catch {
-      return 0;
+  const addDueItem = () => {
+    const val = parseFloat(currentDueInput.replace(',', '.'));
+    if (!isNaN(val) && val > 0) {
+      setDueItems(prev => [...prev, val]);
+      setCurrentDueInput('');
     }
+  };
+
+  const removeDueItem = (index: number) => {
+    setDueItems(prev => prev.filter((_, i) => i !== index));
   };
 
   const totals = useMemo(() => {
@@ -67,11 +63,13 @@ export default function App() {
     });
 
     const grandTotal = lineTotals.reduce((sum, item) => sum + item.total, 0);
-    const due = evaluateExpression(dueValue);
+    const accumulatedDue = dueItems.reduce((sum, val) => sum + val, 0);
+    const currentInputVal = parseFloat(currentDueInput.replace(',', '.') || '0');
+    const due = accumulatedDue + (isNaN(currentInputVal) ? 0 : currentInputVal);
     const balance = grandTotal - due;
 
-    return { lineTotals, grandTotal, due, balance };
-  }, [quantities, dueValue]);
+    return { lineTotals, grandTotal, due, balance, accumulatedDue };
+  }, [quantities, dueItems, currentDueInput]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -164,38 +162,65 @@ export default function App() {
 
           {/* Due Value Input Section */}
           <div className={`px-6 py-6 border-t transition-colors ${isDarkMode ? 'bg-[#242424] border-stone-800' : 'bg-stone-50 border-stone-200'}`}>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+              <div className="flex items-center gap-2 pt-3">
                 <div className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'bg-amber-900/30' : 'bg-amber-100'}`}>
                   <Calculator className={`w-4 h-4 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`} />
                 </div>
                 <span className={`text-sm font-semibold uppercase tracking-wider ${isDarkMode ? 'text-stone-400' : 'text-stone-600'}`}>Valor Devido</span>
               </div>
-              <div className="relative flex flex-col items-end gap-2 w-full md:w-64">
-                <div className="relative w-full">
-                  <span className="absolute left-4 top-4 text-stone-400 font-mono">R$</span>
-                  <textarea
-                    rows={3}
-                    placeholder="0,00&#10;0,00"
-                    value={dueValue}
+
+              <div className="flex-1 flex flex-col items-end gap-3">
+                <div className="relative w-full md:w-64">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-mono">R$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={currentDueInput}
                     onChange={(e) => {
                       const val = e.target.value;
-                      if (val === '' || /^[0-9.,+\s\n]*$/.test(val)) {
-                        setDueValue(val);
+                      if (val === '' || /^[0-9.,]*$/.test(val)) {
+                        setCurrentDueInput(val);
                       }
                     }}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-2xl focus:ring-2 focus:ring-amber-500 transition-all font-mono text-xl text-right resize-none ${isDarkMode ? 'bg-stone-800 border-stone-700 text-white placeholder-stone-600 focus:bg-stone-700' : 'bg-white border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white'}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addDueItem();
+                      }
+                    }}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-2xl focus:ring-2 focus:ring-amber-500 transition-all font-mono text-xl text-right ${isDarkMode ? 'bg-stone-800 border-stone-700 text-white placeholder-stone-600 focus:bg-stone-700' : 'bg-white border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white'}`}
                   />
+                  <div className="absolute -bottom-5 right-0 text-[10px] text-stone-400 uppercase tracking-widest font-bold">
+                    Pressione Enter para somar
+                  </div>
                 </div>
-                {(dueValue.includes('+') || dueValue.includes('\n')) && totals.due > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`text-xs font-mono font-bold px-2 py-1 rounded-md border transition-colors ${isDarkMode ? 'text-amber-400 bg-amber-900/20 border-amber-800/50' : 'text-amber-600 bg-amber-50 border-amber-100'}`}
-                  >
-                    Total: {formatCurrency(totals.due)}
-                  </motion.div>
-                )}
+
+                {/* Accumulated Items List */}
+                <AnimatePresence>
+                  {dueItems.length > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="flex flex-wrap justify-end gap-2 mt-4 max-w-full"
+                    >
+                      {dueItems.map((item, idx) => (
+                        <motion.button
+                          key={`${idx}-${item}`}
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          onClick={() => removeDueItem(idx)}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-mono transition-all group ${isDarkMode ? 'bg-stone-800 border-stone-700 text-stone-300 hover:border-red-900 hover:text-red-400' : 'bg-white border-stone-200 text-stone-600 hover:border-red-200 hover:text-red-500'}`}
+                        >
+                          {formatCurrency(item)}
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity ml-1">×</span>
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
