@@ -16,7 +16,7 @@ export default function App() {
 
   const [dueItems, setDueItems] = useState<number[]>([]);
   const [currentDueInput, setCurrentDueInput] = useState<string>('');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   // Sync dark mode with document class for potential global styles
   useEffect(() => {
