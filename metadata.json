@@ -1,0 +1,5 @@
+{
+  "name": "Contador de Notas Real",
+  "description": "Aplicativo simples para somar valores de cédulas de Real (BRL).",
+  "requestFramePermissions": []
+}
