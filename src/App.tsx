@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, KeyboardEvent } from 'react';
 import { Banknote, Calculator, RotateCcw, TrendingUp, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -18,6 +18,9 @@ export default function App() {
   const [currentDueInput, setCurrentDueInput] = useState<string>('');
   const [isDarkMode, setIsDarkMode] = useState(true);
 
+  // Refs for focusing next inputs
+  const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
   // Sync dark mode with document class for potential global styles
   useEffect(() => {
     if (isDarkMode) {
@@ -31,6 +34,20 @@ export default function App() {
     // Only allow numbers
     if (value === '' || /^\d+$/.test(value)) {
       setQuantities(prev => ({ ...prev, [note]: value }));
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent, index: number) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const nextNote = BANKNOTES[index + 1];
+      if (nextNote && inputRefs.current[nextNote]) {
+        inputRefs.current[nextNote]?.focus();
+      } else {
+        // If it's the last banknote, focus the Due Value input
+        const dueInput = document.querySelector('input[placeholder="0,00"]') as HTMLInputElement;
+        if (dueInput) dueInput.focus();
+      }
     }
   };
 
@@ -119,7 +136,7 @@ export default function App() {
 
           {/* Rows */}
           <div className={`divide-y transition-colors ${isDarkMode ? 'divide-stone-800' : 'divide-stone-100'}`}>
-            {totals.lineTotals.map(({ note, qty, total }) => (
+            {totals.lineTotals.map(({ note, qty, total }, index) => (
               <motion.div
                 key={note}
                 layout
@@ -134,11 +151,13 @@ export default function App() {
 
                 <div className="col-span-4 flex justify-center">
                   <input
+                    ref={el => inputRefs.current[note] = el}
                     type="text"
                     inputMode="numeric"
                     placeholder="0"
                     value={quantities[note]}
                     onChange={(e) => handleQuantityChange(note, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, index)}
                     className={`w-20 text-center py-2 px-3 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all font-mono text-lg ${isDarkMode ? 'bg-stone-800 text-white placeholder-stone-600 focus:bg-stone-700' : 'bg-stone-100 text-stone-900 placeholder-stone-400 focus:bg-white'}`}
                   />
                 </div>
@@ -228,6 +247,37 @@ export default function App() {
           {/* Footer / Total */}
           <div className={`p-8 text-white transition-colors duration-300 ${isDarkMode ? 'bg-stone-950' : 'bg-stone-900'}`}>
             <div className="space-y-6">
+              {/* Total Due Row (Now first) */}
+              {totals.due > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-3 rounded-2xl transition-colors ${isDarkMode ? 'bg-amber-500/10' : 'bg-amber-500/20'}`}>
+                      <Calculator className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-stone-400 text-xs uppercase tracking-widest font-bold">Total Devido</p>
+                      <span className="text-stone-400 text-sm">
+                        {dueItems.length} itens acumulados
+                      </span>
+                    </div>
+                  </div>
+                  <motion.div
+                    key={totals.due}
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="text-right"
+                  >
+                    <span className="text-3xl md:text-4xl font-mono font-bold tracking-tighter text-amber-400">
+                      {formatCurrency(totals.due)}
+                    </span>
+                  </motion.div>
+                </motion.div>
+              )}
+
               {/* Grand Total Row */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
